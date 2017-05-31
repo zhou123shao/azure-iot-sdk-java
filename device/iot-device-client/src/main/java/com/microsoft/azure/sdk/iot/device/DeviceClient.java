@@ -608,8 +608,6 @@ public final class DeviceClient implements Closeable
         }
     }
 
-
-
     /**
      * Sets a runtime option identified by parameter {@code optionName}
      * to {@code value}.
