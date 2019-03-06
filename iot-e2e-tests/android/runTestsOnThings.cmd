@@ -1,10 +1,6 @@
 @REM Copyright (c) Microsoft. All rights reserved.
 @REM Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-@REM -- Select Android Device --
-python AndroidDeviceSelect.py
-@REM -- set device variable --
-call renew_env.cmd 
 ECHO We're working with "%ANDROID_DEVICE_NAME%"
 @REM -- installing device and test apk--
 ECHO installing apk on device
