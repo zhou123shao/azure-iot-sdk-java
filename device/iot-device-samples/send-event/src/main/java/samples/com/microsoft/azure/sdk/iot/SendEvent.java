@@ -84,7 +84,7 @@ public class SendEvent
         client.setOption("SetSendInterval", clientSendInterval);
         countDownLatch = new CountDownLatch((int) numberOfMessagesToSend);
 
-        System.out.println("Message size per send: " + messageSizeInBytes);
+        System.out.println("Message size in bytes per send: " + messageSizeInBytes);
 
         byte[] body = new byte[messageSizeInBytes];
         for (int i = 0; i < messageSizeInBytes; i++)
