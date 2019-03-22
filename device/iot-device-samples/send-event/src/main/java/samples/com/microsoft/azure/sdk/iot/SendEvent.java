@@ -4,16 +4,10 @@
 package samples.com.microsoft.azure.sdk.iot;
 
 import com.microsoft.azure.sdk.iot.device.*;
-import com.microsoft.azure.sdk.iot.device.DeviceTwin.Pair;
-import com.microsoft.azure.sdk.iot.device.transport.IotHubConnectionStatus;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 
@@ -31,7 +25,8 @@ public class SendEvent
     //static int messageSizeInBytes = 1024 * 128; //128 kilobytes
     //static int messageSizeInBytes = 1024 * 255; //255 kilobytes (Max message size allowed for d2c telemetry)
 
-    static CountDownLatch countDownLatch;
+    static CountDownLatch ackedMessagesCountDownLatch;
+    static CountDownLatch sentButNotAckedMessagesCountDownLatch;
 
     static DeviceClient client;
 
@@ -57,6 +52,7 @@ public class SendEvent
         {
             startTimes[messageIndex] = System.currentTimeMillis();
             client.sendEventAsync(this.messageToSend, this.eventCallback, this.messageIndex);
+            sentButNotAckedMessagesCountDownLatch.countDown();
         }
     }
 
@@ -71,7 +67,7 @@ public class SendEvent
 
 
             ackedMessageCount++;
-            countDownLatch.countDown();
+            ackedMessagesCountDownLatch.countDown();
         }
     }
 
@@ -82,7 +78,8 @@ public class SendEvent
 
         long clientSendInterval = 10; //Lower number here spawns send threads more frequently, can send more quickly. By default, value is 10
         client.setOption("SetSendInterval", clientSendInterval);
-        countDownLatch = new CountDownLatch((int) numberOfMessagesToSend);
+        ackedMessagesCountDownLatch = new CountDownLatch((int) numberOfMessagesToSend);
+        sentButNotAckedMessagesCountDownLatch = new CountDownLatch((int) numberOfMessagesToSend);
 
         System.out.println("Message size in bytes per send: " + messageSizeInBytes);
 
@@ -108,13 +105,19 @@ public class SendEvent
             new Thread(sendEventRunnables[sentMessageCount]).start();
         }
 
+        sentButNotAckedMessagesCountDownLatch.await(30, TimeUnit.MINUTES);
+
+        long timestampWhenAllMessagesQueuedButNotNecessarilyAcked = System.currentTimeMillis();
+
         //wait until all sent messages have been acknowledged by the iot hub, or until 90 minutes have passed
-        countDownLatch.await(90, TimeUnit.MINUTES);
+        ackedMessagesCountDownLatch.await(90, TimeUnit.MINUTES);
 
         final long overallStopTime = System.currentTimeMillis();
-        double secondsTaken = ((overallStopTime - overallStartTime) / 1000.0);
-        System.out.println("Overall time taken: " + secondsTaken + " seconds");
 
+        System.out.println("Seconds taken to queue all messages (disregarding acks): " + ((timestampWhenAllMessagesQueuedButNotNecessarilyAcked - overallStartTime)/1000.0));
+
+        double secondsTaken = ((overallStopTime - overallStartTime) / 1000.0);
+        System.out.println("Overall seconds taken: " + secondsTaken + " seconds");
 
         System.out.println("Average seconds between send and ack per message: " + calculateAverageSecondsBetweenSendAndAck());
 
