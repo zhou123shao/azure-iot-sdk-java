@@ -32,6 +32,9 @@ import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.*;
 
+import static com.microsoft.azure.sdk.iot.device.DeviceTwin.DeviceOperations.DEVICE_OPERATION_METHOD_SEND_RESPONSE;
+import static com.microsoft.azure.sdk.iot.device.DeviceTwin.DeviceOperations.DEVICE_OPERATION_METHOD_SUBSCRIBE_REQUEST;
+
 /**
  * An AMQPS IotHub connection between a device and an IoTHub. This class contains functionality for sending/receiving
  * a message, and logic to re-establish the connection with the IoTHub in case it gets lost.
@@ -312,6 +315,20 @@ public final class AmqpsIotHubConnection extends BaseHandler implements IotHubTr
         {
             // Codes_SRS_AMQPSIOTHUBCONNECTION_12_023: [The function shall call AmqpsSessionManager.openDeviceOperationLinks.]
             this.amqpsSessionManager.openDeviceOperationLinks();
+        }
+
+        logger.LogDebug("Exited from method %s", logger.getMethodName());
+    }
+
+    public void openMethodLinks() throws TransportException
+    {
+        logger.LogDebug("Entered in method %s", logger.getMethodName());
+
+        // Codes_SRS_AMQPSIOTHUBCONNECTION_12_022: [The function shall do nothing if the authentication is already open.]
+        if (this.amqpsSessionManager.isAuthenticationOpened())
+        {
+            // Codes_SRS_AMQPSIOTHUBCONNECTION_12_023: [The function shall call AmqpsSessionManager.openDeviceOperationLinks.]
+            this.amqpsSessionManager.openDeviceOperationMethodLinks();
         }
 
         logger.LogDebug("Exited from method %s", logger.getMethodName());
@@ -975,29 +992,37 @@ public final class AmqpsIotHubConnection extends BaseHandler implements IotHubTr
     @Override
     public IotHubStatusCode sendMessage(com.microsoft.azure.sdk.iot.device.Message message) throws TransportException
     {
-        AmqpsConvertToProtonReturnValue amqpsConvertToProtonReturnValue = this.convertToProton(message);
-
-        if (amqpsConvertToProtonReturnValue == null)
+        if (message.getMessageType() == MessageType.DEVICE_METHODS && ((IotHubTransportMessage)message).getDeviceOperationType() == DEVICE_OPERATION_METHOD_SUBSCRIBE_REQUEST )
         {
-            // Codes_SRS_AMQPSTRANSPORT_34_076: [The function throws IllegalStateException if none of the device operation object could handle the conversion.]
-            throw new IllegalStateException("No handler found for message conversion!");
-        }
-
-        // Codes_SRS_AMQPSTRANSPORT_34_077: [The function shall attempt to send the Proton message to IoTHub using the underlying AMQPS connection.]
-        Integer sendHash = this.sendMessage(amqpsConvertToProtonReturnValue.getMessageImpl(), amqpsConvertToProtonReturnValue.getMessageType(), message.getConnectionDeviceId());
-
-        if (sendHash != -1)
-        {
-            // Codes_SRS_AMQPSTRANSPORT_34_078: [If the sent message hash is valid, it shall be added to the in progress map and this function shall return OK.]
-            this.inProgressMessages.put(sendHash, message);
+            this.amqpsSessionManager.openDeviceOperationMethodLinks();
             return IotHubStatusCode.OK;
         }
         else
         {
-            // Codes_SRS_AMQPSTRANSPORT_34_079: [If the sent message hash is -1, this function shall throw a retriable ProtocolException.]
-            ProtocolException protocolException = new ProtocolException("Send failure");
-            protocolException.setRetryable(true);
-            throw protocolException;
+            AmqpsConvertToProtonReturnValue amqpsConvertToProtonReturnValue = this.convertToProton(message);
+
+            if (amqpsConvertToProtonReturnValue == null)
+            {
+                // Codes_SRS_AMQPSTRANSPORT_34_076: [The function throws IllegalStateException if none of the device operation object could handle the conversion.]
+                throw new IllegalStateException("No handler found for message conversion!");
+            }
+
+            // Codes_SRS_AMQPSTRANSPORT_34_077: [The function shall attempt to send the Proton message to IoTHub using the underlying AMQPS connection.]
+            Integer sendHash = this.sendMessage(amqpsConvertToProtonReturnValue.getMessageImpl(), amqpsConvertToProtonReturnValue.getMessageType(), message.getConnectionDeviceId());
+
+            if (sendHash != -1)
+            {
+                // Codes_SRS_AMQPSTRANSPORT_34_078: [If the sent message hash is valid, it shall be added to the in progress map and this function shall return OK.]
+                this.inProgressMessages.put(sendHash, message);
+                return IotHubStatusCode.OK;
+            }
+            else
+            {
+                // Codes_SRS_AMQPSTRANSPORT_34_079: [If the sent message hash is -1, this function shall throw a retriable ProtocolException.]
+                ProtocolException protocolException = new ProtocolException("Send failure");
+                protocolException.setRetryable(true);
+                throw protocolException;
+            }
         }
     }
 

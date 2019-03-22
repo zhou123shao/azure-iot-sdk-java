@@ -150,7 +150,6 @@ public class AmqpsDeviceOperations
 
                 // Codes_SRS_AMQPSDEVICEOPERATIONS_12_010: [The function^ shall onConnectionInit both receiver and sender link.]
                 this.senderLink.open();
-
             }
             catch (Exception e)
             {

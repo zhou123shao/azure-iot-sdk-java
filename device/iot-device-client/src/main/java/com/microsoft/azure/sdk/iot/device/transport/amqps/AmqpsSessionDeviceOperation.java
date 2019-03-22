@@ -11,6 +11,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static com.microsoft.azure.sdk.iot.device.MessageType.DEVICE_METHODS;
+
 public class AmqpsSessionDeviceOperation
 {
     private final DeviceClientConfig deviceClientConfig;
@@ -19,6 +21,8 @@ public class AmqpsSessionDeviceOperation
     private final AmqpsDeviceAuthentication amqpsDeviceAuthentication;
 
     private ArrayList<AmqpsDeviceOperations> amqpsDeviceOperationsList = new ArrayList<>();;
+    private AmqpsDeviceOperations amqpsDeviceOperationsMethod;
+    private AmqpsDeviceOperations amqpsDeviceOperationsTwin;
 
     private long nextTag = 0;
 
@@ -38,6 +42,8 @@ public class AmqpsSessionDeviceOperation
     private List<UUID> cbsCorrelationIdList = Collections.synchronizedList(new ArrayList<UUID>());
 
     private CustomLogger logger;
+
+    private boolean methodflag;
 
     /**
      * Create logical device entity to handle all operation.
@@ -64,8 +70,10 @@ public class AmqpsSessionDeviceOperation
 
         // Codes_SRS_AMQPSESSIONDEVICEOPERATION_12_003: [The constructor shall create AmqpsDeviceTelemetry, AmqpsDeviceMethods and AmqpsDeviceTwin and add them to the device operations list. ]
         this.amqpsDeviceOperationsList.add(new AmqpsDeviceTelemetry(this.deviceClientConfig));
-        this.amqpsDeviceOperationsList.add(new AmqpsDeviceMethods(this.deviceClientConfig));
-        this.amqpsDeviceOperationsList.add(new AmqpsDeviceTwin(this.deviceClientConfig));
+//        this.amqpsDeviceOperationsList.add(new AmqpsDeviceMethods(this.deviceClientConfig));
+//        this.amqpsDeviceOperationsList.add(new AmqpsDeviceTwin(this.deviceClientConfig));
+        amqpsDeviceOperationsMethod = new AmqpsDeviceMethods(this.deviceClientConfig);
+        amqpsDeviceOperationsTwin = new AmqpsDeviceTwin(this.deviceClientConfig);
 
         this.logger = new CustomLogger(this.getClass());
 
@@ -235,6 +243,29 @@ public class AmqpsSessionDeviceOperation
     }
 
     /**
+     *
+     * @param session the Proton session to open the links on.
+     * @throws TransportException throw if Proton operation throws.
+     */
+    void openMethodLinks(Session session) throws TransportException
+    {
+        logger.LogDebug("Entered in method %s", logger.getMethodName());
+
+        methodflag = true;
+        // Codes_SRS_AMQPSESSIONDEVICEOPERATION_12_042: [The function shall do nothing if the session parameter is null.]
+        if (session != null)
+        {
+            if (this.amqpsAuthenticatorState == AmqpsDeviceAuthenticationState.AUTHENTICATED)
+            {
+                    // Codes_SRS_AMQPSESSIONDEVICEOPERATION_12_009: [The function shall call openLinks on all device operations if the authentication state is authenticated.]
+                    this.amqpsDeviceOperationsMethod.openLinks(session);
+            }
+        }
+
+        logger.LogDebug("Exited from method %s", logger.getMethodName());
+    }
+
+    /**
      * Delegate the close link call to device operation objects.
      */
     void closeLinks()
@@ -266,10 +297,18 @@ public class AmqpsSessionDeviceOperation
         {
             if (this.amqpsAuthenticatorState == AmqpsDeviceAuthenticationState.AUTHENTICATED)
             {
-                for (int i = 0; i < this.amqpsDeviceOperationsList.size(); i++)
+                if (methodflag)
                 {
-                    // Codes_SRS_AMQPSESSIONDEVICEOPERATION_12_011: [The function shall call initLink on all device operations.**]**]
-                    this.amqpsDeviceOperationsList.get(i).initLink(link);
+                    String name = link.getName();
+                    this.amqpsDeviceOperationsMethod.initLink(link);
+                }
+                else
+                {
+                    for (int i = 0; i < this.amqpsDeviceOperationsList.size(); i++)
+                    {
+                        // Codes_SRS_AMQPSESSIONDEVICEOPERATION_12_011: [The function shall call initLink on all device operations.**]**]
+                        this.amqpsDeviceOperationsList.get(i).initLink(link);
+                    }
                 }
             }
         }
@@ -350,6 +389,7 @@ public class AmqpsSessionDeviceOperation
     {
         Integer deliveryHash = -1;
 
+        //TODO: send message base on link type only.
         for (int i = 0; i < this.amqpsDeviceOperationsList.size(); i++)
         {
             AmqpsSendReturnValue amqpsSendReturnValue = null;
@@ -357,6 +397,14 @@ public class AmqpsSessionDeviceOperation
             if (amqpsSendReturnValue.isDeliverySuccessful())
             {
                 return amqpsSendReturnValue.getDeliveryHash();
+            }
+            else
+            {
+                amqpsSendReturnValue = this.amqpsDeviceOperationsMethod.sendMessageAndGetDeliveryHash(messageType, msgData, 0, length, deliveryTag);
+                if (amqpsSendReturnValue.isDeliverySuccessful())
+                {
+                    return amqpsSendReturnValue.getDeliveryHash();
+                }
             }
         }
 
@@ -422,6 +470,11 @@ public class AmqpsSessionDeviceOperation
                     break;
                 }
             }
+
+            if (amqpsMessage == null)
+            {
+                amqpsMessage = this.amqpsDeviceOperationsMethod.getMessageFromReceiverLink(linkName);
+            }
         }
 
         return amqpsMessage;
@@ -473,6 +526,14 @@ public class AmqpsSessionDeviceOperation
                 {
                     break;
                 }
+                else
+                {
+                    amqpsConvertToProtonReturnValue = this.amqpsDeviceOperationsMethod.convertToProton(message);
+                    if (amqpsConvertToProtonReturnValue != null)
+                    {
+                        break;
+                    }
+                }
             }
         }
 
@@ -504,6 +565,11 @@ public class AmqpsSessionDeviceOperation
                 {
                     break;
                 }
+            }
+
+            if (amqpsHandleMessageReturnValue == null)
+            {
+                amqpsHandleMessageReturnValue = this.amqpsDeviceOperationsMethod.convertFromProton(amqpsMessage, deviceClientConfig);
             }
         }
 

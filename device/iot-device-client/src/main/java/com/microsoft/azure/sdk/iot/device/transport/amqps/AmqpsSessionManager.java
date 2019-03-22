@@ -202,6 +202,46 @@ public class AmqpsSessionManager
     }
 
     /**
+     * Loop through the device list and open the links.
+     * Lock the execution to wait for the open finish.
+     *
+     * @throws TransportException if open lock throws.
+     */
+    public void openDeviceOperationMethodLinks() throws TransportException
+    {
+        logger.LogDebug("Entered in method %s", logger.getMethodName());
+
+        // Codes_SRS_AMQPSESSIONMANAGER_12_018: [The function shall do nothing if the session is not open.]
+        if (this.session != null)
+        {
+            for (int i = 0; i < this.amqpsDeviceSessionList.size(); i++)
+            {
+                if (this.amqpsDeviceSessionList.get(i) != null)
+                {
+                    // Codes_SRS_AMQPSESSIONMANAGER_12_019: [The function shall call openLinks on all session list members.]
+                    this.amqpsDeviceSessionList.get(i).openMethodLinks(this.session);
+
+                    synchronized (this.openLinksLock)
+                    {
+                        try
+                        {
+                            // Codes_SRS_AMQPSESSIONMANAGER_12_020: [The function shall lock the execution with waitLock.]
+                            this.openLinksLock.waitLock(MAX_WAIT_TO_AUTHENTICATE_MS);
+                        }
+                        catch (InterruptedException e)
+                        {
+                            // Codes_SRS_AMQPSESSIONMANAGER_12_021: [The function shall throw TransportException if the lock throws.]
+                            throw new TransportException("Waited too long for the connection to onConnectionInit.");
+                        }
+                    }
+                }
+            }
+        }
+
+        logger.LogDebug("Exited from method %s", logger.getMethodName());
+    }
+
+    /**
      * Event handler for connection initialization. 
      * Open the session and the links. 
      *
