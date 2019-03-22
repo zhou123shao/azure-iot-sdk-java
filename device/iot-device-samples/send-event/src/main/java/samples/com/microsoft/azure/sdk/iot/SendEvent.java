@@ -33,22 +33,44 @@ public class SendEvent
 
     public static void main(String[] args) throws IOException, URISyntaxException, InterruptedException
     {
-        final long messagesToSend = 1000000;
         String connString = "<device connection string for a device in your B3 or S3 iot hub>";
+
+        final int numberOfMessagesToSend = 5000;
+        int messageSizeInBytes = 1024; //1 kilobyte
+        //int messageSizeInBytes = 1024 * 64; //64 kilobytes
+        //int messageSizeInBytes = 1024 * 1024; //1 megabyte
+        //int messageSizeInBytes = 1024 * 1024 * 1024; //1 gigabyte
+
+        byte[] body = new byte[messageSizeInBytes];
+        for (int i = 0; i < messageSizeInBytes; i++)
+        {
+            body[i] = 1;
+        }
+
+        final Message[] messagesToSend = new Message[numberOfMessagesToSend];
+        for (int messageIndex = 0; messageIndex < numberOfMessagesToSend; messageIndex++)
+        {
+            messagesToSend[messageIndex] = new Message(new String(body.clone()));
+        }
+
+        final IotHubEventCallback[] callbacks = new IotHubEventCallback[numberOfMessagesToSend];
+        for (int messageIndex = 0; messageIndex < numberOfMessagesToSend; messageIndex++)
+        {
+            callbacks[messageIndex] = new EventCallback();
+        }
+
         DeviceClient client = new DeviceClient(connString, IotHubClientProtocol.MQTT);
-        long clientSendInterval = 10; //Lower number here spawns send threads more frequently, can send more quickly. By default, value is 10
+        long clientSendInterval = 5; //Lower number here spawns send threads more frequently, can send more quickly. By default, value is 10
         client.setOption("SetSendInterval", clientSendInterval);
-        countDownLatch = new CountDownLatch((int) messagesToSend);
+        countDownLatch = new CountDownLatch((int) numberOfMessagesToSend);
 
         client.open();
 
         final long startTime = System.currentTimeMillis();
-        while (sentMessageCount < messagesToSend)
+        for (int sentMessageCount = 0; sentMessageCount < numberOfMessagesToSend; sentMessageCount++)
         {
-            Message message = new Message("a");
-            EventCallback callback = new EventCallback();
-            client.sendEventAsync(message, callback, message);
-            sentMessageCount++;
+            Message message = messagesToSend[sentMessageCount];
+            client.sendEventAsync(message, callbacks[sentMessageCount], message);
         }
 
         //wait until all sent messages have been acknowledged by the iot hub, or until 90 minutes have passed
