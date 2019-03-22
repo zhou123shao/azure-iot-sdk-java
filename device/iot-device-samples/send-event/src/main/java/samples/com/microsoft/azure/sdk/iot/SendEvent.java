@@ -14,25 +14,26 @@ import java.util.concurrent.TimeUnit;
 /** Sends a number of event messages to an IoT Hub. */
 public class SendEvent
 {
-    static int sentMessageCount = 0;
-    static int ackedMessageCount = 0;
-    final static int numberOfMessagesToSend = 500;
+    final static int numberOfMessagesToSend = 5000;
 
-    static int messageSizeInBytes = 1; // 1 byte
-    //static int messageSizeInBytes = 1024; //1 kilobyte
+    //static int messageSizeInBytes = 1; // 1 byte
+    static int messageSizeInBytes = 1024; //1 kilobyte
     //static int messageSizeInBytes = 1024 * 32; //32 kilobytes
     //static int messageSizeInBytes = 1024 * 64; //64 kilobytes
     //static int messageSizeInBytes = 1024 * 128; //128 kilobytes
     //static int messageSizeInBytes = 1024 * 255; //255 kilobytes (Max message size allowed for d2c telemetry)
 
+    static long clientSendInterval = 10; //Lower number here spawns send threads more frequently, can send more quickly. By default, value is 10
+
     static CountDownLatch ackedMessagesCountDownLatch;
     static CountDownLatch sentButNotAckedMessagesCountDownLatch;
+    static int sentMessageCount = 0;
+    static int ackedMessageCount = 0;
 
     static DeviceClient client;
 
     static double[] startTimes = new double[numberOfMessagesToSend];
     static double[] stopTimes = new double[numberOfMessagesToSend];
-
 
     private static class SendEventRunnable implements java.lang.Runnable
     {
@@ -65,7 +66,6 @@ public class SendEvent
             int messageIndex = (int) context;
             stopTimes[messageIndex] = currentTime;
 
-
             ackedMessageCount++;
             ackedMessagesCountDownLatch.countDown();
         }
@@ -76,10 +76,9 @@ public class SendEvent
         String connString = "<device connection string for a device in your B3 or S3 iot hub>";
         client = new DeviceClient(connString, IotHubClientProtocol.MQTT);
 
-        long clientSendInterval = 10; //Lower number here spawns send threads more frequently, can send more quickly. By default, value is 10
         client.setOption("SetSendInterval", clientSendInterval);
-        ackedMessagesCountDownLatch = new CountDownLatch((int) numberOfMessagesToSend);
-        sentButNotAckedMessagesCountDownLatch = new CountDownLatch((int) numberOfMessagesToSend);
+        ackedMessagesCountDownLatch = new CountDownLatch(numberOfMessagesToSend);
+        sentButNotAckedMessagesCountDownLatch = new CountDownLatch(numberOfMessagesToSend);
 
         System.out.println("Message size in bytes per send: " + messageSizeInBytes);
 
