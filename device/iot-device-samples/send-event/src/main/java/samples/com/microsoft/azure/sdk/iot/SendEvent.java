@@ -83,6 +83,8 @@ public class SendEvent
 
         System.out.println("Message size in bytes per send: " + messageSizeInBytes);
 
+        System.out.println("Sending " + numberOfMessagesToSend + " messages");
+
         byte[] body = new byte[messageSizeInBytes];
         for (int i = 0; i < messageSizeInBytes; i++)
         {
