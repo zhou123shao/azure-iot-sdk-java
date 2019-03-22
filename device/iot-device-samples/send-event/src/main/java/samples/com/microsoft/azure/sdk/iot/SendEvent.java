@@ -37,9 +37,10 @@ public class SendEvent
 
         final int numberOfMessagesToSend = 5000;
         int messageSizeInBytes = 1024; //1 kilobyte
+        //int messageSizeInBytes = 1024 * 32; //32 kilobytes
         //int messageSizeInBytes = 1024 * 64; //64 kilobytes
-        //int messageSizeInBytes = 1024 * 1024; //1 megabyte
-        //int messageSizeInBytes = 1024 * 1024 * 1024; //1 gigabyte
+        //int messageSizeInBytes = 1024 * 128; //128 kilobytes
+        //int messageSizeInBytes = 1024 * 255; //255 kilobytes (Max message size allowed for d2c telemetry)
 
         System.out.println("Message size per send: " + messageSizeInBytes);
 
