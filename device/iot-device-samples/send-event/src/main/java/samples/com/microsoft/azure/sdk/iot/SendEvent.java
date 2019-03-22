@@ -41,6 +41,8 @@ public class SendEvent
         //int messageSizeInBytes = 1024 * 1024; //1 megabyte
         //int messageSizeInBytes = 1024 * 1024 * 1024; //1 gigabyte
 
+        System.out.println("Message size per send: " + messageSizeInBytes);
+
         byte[] body = new byte[messageSizeInBytes];
         for (int i = 0; i < messageSizeInBytes; i++)
         {
