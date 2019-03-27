@@ -4,6 +4,7 @@
 package samples.com.microsoft.azure.sdk.iot;
 
 import com.microsoft.azure.sdk.iot.device.*;
+import com.microsoft.azure.sdk.iot.device.transport.IotHubConnectionStatus;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -14,7 +15,41 @@ import java.util.concurrent.TimeUnit;
 /** Sends a number of event messages to an IoT Hub. */
 public class SendEvent
 {
-    final static int numberOfMessagesToSend = 5000;
+    protected static class IotHubConnectionStatusChangeCallbackLogger implements IotHubConnectionStatusChangeCallback
+    {
+        @Override
+        public void execute(IotHubConnectionStatus status, IotHubConnectionStatusChangeReason statusChangeReason, Throwable throwable, Object callbackContext)
+        {
+            System.out.println();
+            System.out.println("CONNECTION STATUS UPDATE: " + status);
+            System.out.println("CONNECTION STATUS REASON: " + statusChangeReason);
+            System.out.println("CONNECTION STATUS THROWABLE: " + (throwable == null ? "null" : throwable.getMessage()));
+            System.out.println();
+
+            if (throwable != null)
+            {
+                throwable.printStackTrace();
+            }
+
+            if (status == IotHubConnectionStatus.DISCONNECTED)
+            {
+                //connection was lost, and is not being re-established. Look at provided exception for
+                // how to resolve this issue. Cannot send messages until this issue is resolved, and you manually
+                // re-open the device client
+            }
+            else if (status == IotHubConnectionStatus.DISCONNECTED_RETRYING)
+            {
+                //connection was lost, but is being re-established. Can still send messages, but they won't
+                // be sent until the connection is re-established
+            }
+            else if (status == IotHubConnectionStatus.CONNECTED)
+            {
+                //Connection was successfully re-established. Can send messages.
+            }
+        }
+    }
+
+    final static int numberOfMessagesToSend = 1000000;
 
     //static int messageSizeInBytes = 1; // 1 byte
     static int messageSizeInBytes = 1024; //1 kilobyte
@@ -71,10 +106,12 @@ public class SendEvent
         }
     }
 
-    public static void main(String[] args) throws IOException, URISyntaxException, InterruptedException
+    public static void main(String[] args) throws Exception
     {
-        String connString = "<device connection string for a device in your B3 or S3 iot hub>";
-        client = new DeviceClient(connString, IotHubClientProtocol.MQTT);
+        String connString = "";
+        client = new DeviceClient(connString, IotHubClientProtocol.AMQPS);
+
+        client.registerConnectionStatusChangeCallback(new IotHubConnectionStatusChangeCallbackLogger(), new Object());
 
         client.setOption("SetSendInterval", clientSendInterval);
         ackedMessagesCountDownLatch = new CountDownLatch(numberOfMessagesToSend);
@@ -106,14 +143,27 @@ public class SendEvent
             new Thread(sendEventRunnables[sentMessageCount]).start();
         }
 
-        sentButNotAckedMessagesCountDownLatch.await(30, TimeUnit.MINUTES);
+        if (sentButNotAckedMessagesCountDownLatch.await(10, TimeUnit.MINUTES))
+        {
+            throw new Exception("Timed out waiting for all messages to be queued");
+        }
 
         long timestampWhenAllMessagesQueuedButNotNecessarilyAcked = System.currentTimeMillis();
 
         //wait until all sent messages have been acknowledged by the iot hub, or until 90 minutes have passed
-        ackedMessagesCountDownLatch.await(90, TimeUnit.MINUTES);
+        if (ackedMessagesCountDownLatch.await(50, TimeUnit.MINUTES))
+        {
+            throw new Exception("Timed out waiting for all messages to be acknowledged");
+        }
+
+
+        System.out.println();
+        System.out.println();
+        System.out.println();
 
         final long overallStopTime = System.currentTimeMillis();
+
+        client.closeNow();
 
         System.out.println("Seconds taken to queue all messages (disregarding acks): " + ((timestampWhenAllMessagesQueuedButNotNecessarilyAcked - overallStartTime)/1000.0));
 
@@ -124,8 +174,7 @@ public class SendEvent
 
         double messagesPerSecond = ackedMessageCount / secondsTaken;
         System.out.println("Messages per second: " + messagesPerSecond);
-
-        client.closeNow();
+        System.out.println("Sent messages: " + numberOfMessagesToSend);
     }
 
     private static double calculateAverageSecondsBetweenSendAndAck()
