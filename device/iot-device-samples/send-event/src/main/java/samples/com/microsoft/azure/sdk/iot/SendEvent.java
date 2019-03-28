@@ -143,7 +143,7 @@ public class SendEvent
             new Thread(sendEventRunnables[sentMessageCount]).start();
         }
 
-        if (sentButNotAckedMessagesCountDownLatch.await(10, TimeUnit.MINUTES))
+        if (!sentButNotAckedMessagesCountDownLatch.await(10, TimeUnit.MINUTES))
         {
             throw new Exception("Timed out waiting for all messages to be queued");
         }
@@ -151,7 +151,7 @@ public class SendEvent
         long timestampWhenAllMessagesQueuedButNotNecessarilyAcked = System.currentTimeMillis();
 
         //wait until all sent messages have been acknowledged by the iot hub, or until 90 minutes have passed
-        if (ackedMessagesCountDownLatch.await(50, TimeUnit.MINUTES))
+        if (!ackedMessagesCountDownLatch.await(50, TimeUnit.MINUTES))
         {
             throw new Exception("Timed out waiting for all messages to be acknowledged");
         }
