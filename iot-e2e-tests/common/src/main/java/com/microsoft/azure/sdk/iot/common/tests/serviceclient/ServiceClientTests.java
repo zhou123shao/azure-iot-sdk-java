@@ -9,6 +9,8 @@ import com.microsoft.azure.sdk.iot.common.helpers.IntegrationTest;
 import com.microsoft.azure.sdk.iot.common.helpers.Tools;
 import com.microsoft.azure.sdk.iot.service.*;
 import com.microsoft.azure.sdk.iot.service.exceptions.IotHubException;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runners.Parameterized;
 
@@ -30,7 +32,8 @@ public class ServiceClientTests extends IntegrationTest
 {
     protected static String iotHubConnectionString = "";
     protected static String invalidCertificateServerConnectionString = "";
-    private static String deviceId = "java-service-client-e2e-test";
+    private static String deviceIdPrefix = "java-service-client-e2e-test";
+    private static String deviceId;
     private static String content = "abcdefghijklmnopqrstuvwxyz1234567890";
     private static String hostName;
 
@@ -57,8 +60,6 @@ public class ServiceClientTests extends IntegrationTest
     @Parameterized.Parameters(name = "{0}")
     public static Collection inputsCommon() throws IOException
     {
-        String uuid = UUID.randomUUID().toString();
-        deviceId = deviceId.concat("-" + uuid);
         hostName = IotHubConnectionStringBuilder.createConnectionString(iotHubConnectionString).getHostName();
 
 
@@ -71,6 +72,13 @@ public class ServiceClientTests extends IntegrationTest
         );
 
         return inputs;
+    }
+
+    @Before
+    public void setupTest()
+    {
+        String uuid = UUID.randomUUID().toString();
+        deviceId = deviceIdPrefix.concat("-" + uuid);
     }
 
     @Test (timeout=MAX_TEST_MILLISECONDS)
