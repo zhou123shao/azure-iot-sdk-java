@@ -10,6 +10,7 @@ import com.microsoft.azure.sdk.iot.common.helpers.Tools;
 import com.microsoft.azure.sdk.iot.device.*;
 import com.microsoft.azure.sdk.iot.device.Message;
 import com.microsoft.azure.sdk.iot.device.exceptions.ModuleClientException;
+import com.microsoft.azure.sdk.iot.device.transport.IotHubConnectionStatus;
 import com.microsoft.azure.sdk.iot.service.*;
 import com.microsoft.azure.sdk.iot.service.auth.AuthenticationType;
 import com.microsoft.azure.sdk.iot.service.exceptions.IotHubException;
@@ -317,6 +318,54 @@ public class SendMessagesCommon extends IntegrationTest
         public void closeConnection() throws IOException
         {
             client.closeNow();
+        }
+    }
+
+    /**
+     * Expected callback order by protocol:
+     * amqps/amqps_ws : Connected -> Disconnected (Client_closed)
+     * mqtt/mqtt_ws   : Connected -> Disconnected_Retrying -> Connected -> Disconnected (Client_closed)
+     */
+    protected static class IotHubConnectionStatusChangeTokenRenewalCallbackVerifier implements IotHubConnectionStatusChangeCallback
+    {
+        IotHubClientProtocol protocol;
+        boolean disconnectHappened;
+
+        public IotHubConnectionStatusChangeTokenRenewalCallbackVerifier(IotHubClientProtocol protocol)
+        {
+            this.protocol = protocol;
+            this.disconnectHappened = false;
+        }
+
+        @Override
+        public void execute(IotHubConnectionStatus status, IotHubConnectionStatusChangeReason statusChangeReason, Throwable throwable, Object callbackContext)
+        {
+            Success success = (Success) callbackContext;
+            if (status == IotHubConnectionStatus.DISCONNECTED)
+            {
+                if (statusChangeReason != IotHubConnectionStatusChangeReason.CLIENT_CLOSE)
+                {
+                    success.setResult(false);
+                }
+
+                if (protocol == MQTT || protocol == MQTT_WS)
+                {
+                    //mqtt needs to have the disconnect happen in order to verify that the token expired and the grace period was passed
+                    success.setResult(success.getResult() && this.disconnectHappened);
+                }
+            }
+            else if (status == IotHubConnectionStatus.DISCONNECTED_RETRYING)
+            {
+                //AMQPS/AMQPS_WS is expected to not lose connection at any point except for when the client is closed
+                // MQTT does need to tear down the expired connection in order to send the new sas token, so this
+                // DISCONNECTED RETRYING is expected at least once.
+                if (protocol == AMQPS || protocol == AMQPS_WS)
+                {
+                    success.setResult(false);
+                }
+
+                disconnectHappened = true;
+            }
         }
     }
 

@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import static com.microsoft.azure.sdk.iot.common.helpers.SasTokenGenerator.generateSasTokenForIotDevice;
 import static com.microsoft.azure.sdk.iot.device.IotHubClientProtocol.*;
 import static com.microsoft.azure.sdk.iot.service.auth.AuthenticationType.*;
+import static junit.framework.TestCase.assertTrue;
 import static junit.framework.TestCase.fail;
 
 /**
@@ -56,12 +57,23 @@ public class SendMessagesTests extends SendMessagesCommon
         IotHubServicesCommon.sendMessages(testInstance.client, testInstance.protocol, NORMAL_MESSAGES_TO_SEND, RETRY_MILLISECONDS, SEND_TIMEOUT_MILLISECONDS, 0, null);
     }
 
+    /**
+     * This test behaves a bit differently across protocol due to amqp proactively renewing sas tokens, and http not having connection status callback
+     * Amqps/Amqps_ws : Expect the cbs link to send a new sas token before the old token expires
+     * Mqtt/Mqtt_ws   : Expect the connection to be lost briefly, but re-established with a new sas token
+     * Http           : No connection status callback, but should be able to send a message after the first generated sas token has expired
+     */
     @Test
     public void tokenRenewalWorks() throws InterruptedException, IOException
     {
         final long SECONDS_FOR_SAS_TOKEN_TO_LIVE_BEFORE_RENEWAL = 60;
         final long DEFAULT_SAS_TOKEN_EXPIRY_TIME = 3600;
-        final long WAIT_BUFFER_FOR_TOKEN_TO_EXPIRE = 15;
+        final long EXPIRED_SAS_TOKEN_GRACE_PERIOD_SECONDS = 300;
+        final long EXTRA_BUFFER_TO_ENSURE_TOKEN_EXPIRED_SECONDS = 30;
+
+        //service grants a 5 minute grace period beyond when sas token expires, this test attempts to send a message after that grace period
+        // to ensure that the first sas token has expired, and that the sas token was renewed successfully.
+        final long WAIT_BUFFER_FOR_TOKEN_TO_EXPIRE = EXPIRED_SAS_TOKEN_GRACE_PERIOD_SECONDS + EXTRA_BUFFER_TO_ENSURE_TOKEN_EXPIRED_SECONDS;
 
         if (testInstance.authenticationType != SAS)
         {
@@ -71,6 +83,11 @@ public class SendMessagesTests extends SendMessagesCommon
 
         //set it so a newly generated sas token only lasts for a small amount of time
         testInstance.client.setOption("SetSASTokenExpiryTime", SECONDS_FOR_SAS_TOKEN_TO_LIVE_BEFORE_RENEWAL);
+
+        Success success = new Success();
+        success.setResult(true); //assume success until unexpected connection status change
+        testInstance.client.registerConnectionStatusChangeCallback(new IotHubConnectionStatusChangeTokenRenewalCallbackVerifier(testInstance.protocol), success);
+
         IotHubServicesCommon.openClientWithRetry(testInstance.client);
 
         //wait until old sas token has expired, this should force the config to generate a new one from the device key
@@ -98,6 +115,8 @@ public class SendMessagesTests extends SendMessagesCommon
         // resetting the device's option to default
         testInstance.client.close();
         testInstance.client.setOption("SetSASTokenExpiryTime", DEFAULT_SAS_TOKEN_EXPIRY_TIME);
+
+        assertTrue(CorrelationDetailsLoggingAssert.buildExceptionMessage("Sending message over AMQP protocol in parallel failed", testInstance.client), success.result);
     }
 
     @Test
