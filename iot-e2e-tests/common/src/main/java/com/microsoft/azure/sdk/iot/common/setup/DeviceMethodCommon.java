@@ -19,10 +19,7 @@ import com.microsoft.azure.sdk.iot.service.devicetwin.DeviceMethod;
 import com.microsoft.azure.sdk.iot.service.devicetwin.MethodResult;
 import com.microsoft.azure.sdk.iot.service.exceptions.IotHubException;
 import junit.framework.TestCase;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.*;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -157,23 +154,12 @@ public class DeviceMethodCommon extends IntegrationTest
             Module moduleX509 = Module.createModule(deviceX509Id, moduleX509Id, AuthenticationType.SELF_SIGNED);
             moduleX509.setThumbprintFinal(x509Thumbprint, x509Thumbprint);
 
-            /* Add devices to the IoTHub */
-            device = Tools.addDeviceWithRetry(registryManager, device);
-            deviceX509 = Tools.addDeviceWithRetry(registryManager, deviceX509);
-
-            Thread.sleep(2000);
-
-            if (clientType == ClientType.MODULE_CLIENT)
-            {
-                module = Tools.addModuleWithRetry(registryManager, module);
-                moduleX509 = Tools.addModuleWithRetry(registryManager, moduleX509);
-            }
-
             if (clientType == ClientType.DEVICE_CLIENT)
             {
                 if (authenticationType == SAS)
                 {
                     //sas device client
+                    device = Tools.addDeviceWithRetry(registryManager, device);
                     DeviceClient deviceClient = new DeviceClient(registryManager.getDeviceConnectionString(device), protocol);
                     this.deviceTestManager = new DeviceTestManager(deviceClient);
                     this.identity = device;
@@ -181,6 +167,7 @@ public class DeviceMethodCommon extends IntegrationTest
                 else if (authenticationType == SELF_SIGNED)
                 {
                     //x509 device client
+                    deviceX509 = Tools.addDeviceWithRetry(registryManager, deviceX509);
                     DeviceClient deviceClientX509 = new DeviceClient(registryManager.getDeviceConnectionString(deviceX509), protocol, publicKeyCert, false, privateKey, false);
                     this.deviceTestManager = new DeviceTestManager(deviceClientX509);
                     this.identity = deviceX509;
@@ -195,6 +182,7 @@ public class DeviceMethodCommon extends IntegrationTest
                 if (authenticationType == SAS)
                 {
                     //sas module client
+                    module = Tools.addModuleWithRetry(registryManager, module);
                     ModuleClient moduleClient = new ModuleClient(DeviceConnectionString.get(iotHubConnectionString, device, module), protocol);
                     this.deviceTestManager = new DeviceTestManager(moduleClient);
                     this.identity = module;
@@ -202,6 +190,7 @@ public class DeviceMethodCommon extends IntegrationTest
                 else if (authenticationType == SELF_SIGNED)
                 {
                     //x509 module client
+                    moduleX509 = Tools.addModuleWithRetry(registryManager, moduleX509);
                     ModuleClient moduleClientX509 = new ModuleClient(DeviceConnectionString.get(iotHubConnectionString, deviceX509, moduleX509), protocol, publicKeyCert, false, privateKey, false);
                     this.deviceTestManager = new DeviceTestManager(moduleClientX509);
                     this.identity = moduleX509;
@@ -211,6 +200,24 @@ public class DeviceMethodCommon extends IntegrationTest
                     throw new Exception("Test code has not been written for this path yet");
                 }
             }
+
+            Thread.sleep(2000);
+        }
+
+        public void dispose() throws IOException, IotHubException
+        {
+            this.deviceTestManager.client.closeNow();
+            if (registryManager != null)
+            {
+                registryManager.removeDevice(this.identity.getDeviceId());
+            }
+        }
+
+        public void newInstance() throws Exception
+        {
+            DeviceMethodTestInstance newInstance = new DeviceMethodTestInstance(protocol, authenticationType, clientType, publicKeyCert, privateKey, x509Thumbprint);
+            this.identity = newInstance.identity;
+            this.deviceTestManager = newInstance.deviceTestManager;
         }
     }
 
@@ -244,8 +251,9 @@ public class DeviceMethodCommon extends IntegrationTest
     }
 
     @Before
-    public void cleanToStart()
+    public void cleanToStart() throws Exception
     {
+        this.testInstance.newInstance();
         actualStatusUpdates = new ArrayList<Pair<IotHubConnectionStatus, Throwable>>();
         setConnectionStatusCallBack(actualStatusUpdates);
 
@@ -281,7 +289,7 @@ public class DeviceMethodCommon extends IntegrationTest
     }
 
     @After
-    public void delayTests()
+    public void delayTests() throws IOException, IotHubException
     {
         try
         {
@@ -293,6 +301,8 @@ public class DeviceMethodCommon extends IntegrationTest
             e.printStackTrace();
             fail("Unexpected exception encountered");
         }
+
+        this.testInstance.dispose();
     }
 
     protected static class RunnableInvoke implements Runnable
@@ -357,26 +367,9 @@ public class DeviceMethodCommon extends IntegrationTest
         }
     }
 
-    protected static void tearDown(Collection<BaseDevice> identitiesToDispose, ArrayList<DeviceTestManager> deviceTestManagers)
+    @AfterClass
+    protected static void tearDown()
     {
-        try
-        {
-            for (DeviceTestManager deviceTestManager : deviceTestManagers)
-            {
-                if (deviceTestManager != null)
-                {
-                    deviceTestManager.stop();
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            e.printStackTrace();
-            fail("Failed to stop device test managers");
-        }
-
-        Tools.removeDevicesAndModules(registryManager, identitiesToDispose);
-
         registryManager.close();
     }
 
