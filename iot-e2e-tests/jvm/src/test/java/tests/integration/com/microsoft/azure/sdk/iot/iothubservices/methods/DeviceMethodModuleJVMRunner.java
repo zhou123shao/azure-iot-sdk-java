@@ -6,27 +6,20 @@
 package tests.integration.com.microsoft.azure.sdk.iot.iothubservices.methods;
 
 import com.microsoft.azure.sdk.iot.common.helpers.ClientType;
-import com.microsoft.azure.sdk.iot.common.helpers.DeviceTestManager;
 import com.microsoft.azure.sdk.iot.common.helpers.TestConstants;
 import com.microsoft.azure.sdk.iot.common.helpers.Tools;
 import com.microsoft.azure.sdk.iot.common.tests.iothubservices.methods.DeviceMethodTests;
 import com.microsoft.azure.sdk.iot.device.IotHubClientProtocol;
-import com.microsoft.azure.sdk.iot.service.BaseDevice;
 import com.microsoft.azure.sdk.iot.service.auth.AuthenticationType;
-import org.junit.AfterClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.ArrayList;
 import java.util.Collection;
 
 @RunWith(Parameterized.class)
 public class DeviceMethodModuleJVMRunner extends DeviceMethodTests
 {
-    static Collection<BaseDevice> identities;
-    static ArrayList<DeviceTestManager> testManagers;
-
-    public DeviceMethodModuleJVMRunner(IotHubClientProtocol protocol, AuthenticationType authenticationType, ClientType clientType, String publicKeyCert, String privateKey, String x509Thumbprint)
+    public DeviceMethodModuleJVMRunner(IotHubClientProtocol protocol, AuthenticationType authenticationType, ClientType clientType, String publicKeyCert, String privateKey, String x509Thumbprint) throws Exception
     {
         super(protocol, authenticationType, clientType, publicKeyCert, privateKey, x509Thumbprint);
     }
@@ -36,25 +29,6 @@ public class DeviceMethodModuleJVMRunner extends DeviceMethodTests
     public static Collection inputs() throws Exception
     {
         iotHubConnectionString = Tools.retrieveEnvironmentVariableValue(TestConstants.IOT_HUB_CONNECTION_STRING_ENV_VAR_NAME);
-
-        Collection inputs = inputsCommon(ClientType.MODULE_CLIENT);
-        Object[] inputsArray = inputs.toArray();
-
-        testManagers = new ArrayList<>();
-        for (int i = 0; i < inputsArray.length; i++)
-        {
-            Object[] inputCollection = (Object[])inputsArray[i];
-            testManagers.add((DeviceTestManager) inputCollection[0]);
-        }
-
-        identities = getIdentities(inputs);
-
-        return inputs;
-    }
-
-    @AfterClass
-    public static void cleanUpResources()
-    {
-        tearDown(identities, testManagers);
+        return inputsCommon(ClientType.MODULE_CLIENT);
     }
 }

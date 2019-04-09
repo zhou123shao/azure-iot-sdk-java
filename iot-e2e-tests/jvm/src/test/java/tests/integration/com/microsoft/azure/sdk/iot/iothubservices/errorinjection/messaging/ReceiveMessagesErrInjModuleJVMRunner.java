@@ -9,11 +9,8 @@ import com.microsoft.azure.sdk.iot.common.helpers.ClientType;
 import com.microsoft.azure.sdk.iot.common.helpers.TestConstants;
 import com.microsoft.azure.sdk.iot.common.helpers.Tools;
 import com.microsoft.azure.sdk.iot.common.tests.iothubservices.errorinjection.ReceiveMessagesErrInjTests;
-import com.microsoft.azure.sdk.iot.device.InternalClient;
 import com.microsoft.azure.sdk.iot.device.IotHubClientProtocol;
-import com.microsoft.azure.sdk.iot.service.BaseDevice;
 import com.microsoft.azure.sdk.iot.service.auth.AuthenticationType;
-import org.junit.AfterClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -22,9 +19,7 @@ import java.util.Collection;
 @RunWith(Parameterized.class)
 public class ReceiveMessagesErrInjModuleJVMRunner extends ReceiveMessagesErrInjTests
 {
-    static Collection<BaseDevice> identities;
-
-    public ReceiveMessagesErrInjModuleJVMRunner(IotHubClientProtocol protocol, AuthenticationType authenticationType, ClientType clientType, String publicKeyCert, String privateKey, String x509Thumbprint)
+    public ReceiveMessagesErrInjModuleJVMRunner(IotHubClientProtocol protocol, AuthenticationType authenticationType, ClientType clientType, String publicKeyCert, String privateKey, String x509Thumbprint) throws Exception
     {
         super(protocol, authenticationType, clientType, publicKeyCert, privateKey, x509Thumbprint);
     }
@@ -35,13 +30,6 @@ public class ReceiveMessagesErrInjModuleJVMRunner extends ReceiveMessagesErrInjT
     {
         iotHubConnectionString = Tools.retrieveEnvironmentVariableValue(TestConstants.IOT_HUB_CONNECTION_STRING_ENV_VAR_NAME);
         Collection inputs = inputsCommon(ClientType.MODULE_CLIENT);
-        identities = getIdentities(inputs);
         return inputs;
-    }
-
-    @AfterClass
-    public static void cleanUpResources()
-    {
-        tearDown(identities);
     }
 }
