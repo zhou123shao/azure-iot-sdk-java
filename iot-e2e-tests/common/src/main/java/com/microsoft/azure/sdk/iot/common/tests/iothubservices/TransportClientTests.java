@@ -14,10 +14,7 @@ import com.microsoft.azure.sdk.iot.device.Message;
 import com.microsoft.azure.sdk.iot.service.*;
 import com.microsoft.azure.sdk.iot.service.devicetwin.*;
 import com.microsoft.azure.sdk.iot.service.exceptions.IotHubException;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -112,20 +109,6 @@ public class TransportClientTests extends IntegrationTest
     {
         registryManager = RegistryManager.createFromConnectionString(iotHubConnectionString);
 
-        String uuid = UUID.randomUUID().toString();
-
-        System.out.print("TransportClientTests UUID: " + uuid);
-
-        for (int i = 0; i < MAX_DEVICE_MULTIPLEX; i++)
-        {
-            String deviceId = "java-device-client-e2e-test-multiplexing".concat(i + "-" + uuid);
-
-            deviceListAmqps[i] = Device.createFromId(deviceId, null, null);
-            Tools.addDeviceWithRetry(registryManager, deviceListAmqps[i]);
-            clientConnectionStringArrayList[i] = registryManager.getDeviceConnectionString(deviceListAmqps[i]);
-        }
-
-        Thread.sleep(MAX_DEVICE_MULTIPLEX * REGISTRY_MANAGER_DEVICE_CREATION_DELAY_MILLISECONDS);
 
         messageProperties = new HashMap<>(3);
         messageProperties.put("name1", "value1");
@@ -150,18 +133,8 @@ public class TransportClientTests extends IntegrationTest
     @AfterClass
     public static void tearDown() throws IOException, IotHubException, InterruptedException
     {
-        // flush all the notifications caused by this test suite to avoid failures running on different test suite attempt
-        Assert.assertNotNull(fileUploadNotificationReceiver);
-        fileUploadNotificationReceiver.open();
-        fileUploadNotificationReceiver.receive(MAX_MILLISECS_TIMEOUT_FLUSH_NOTIFICATION);
-        fileUploadNotificationReceiver.close();
-
         if (registryManager != null)
         {
-            for (int i = 0; i < MAX_DEVICE_MULTIPLEX; i++)
-            {
-                registryManager.removeDevice(deviceListAmqps[i].getDeviceId());
-            }
             registryManager.close();
 
             registryManager = null;
@@ -173,9 +146,37 @@ public class TransportClientTests extends IntegrationTest
         }
     }
 
-    @After
-    public void delayTests()
+    @Before
+    public void setupTest() throws InterruptedException, IotHubException, IOException
     {
+        String uuid = UUID.randomUUID().toString();
+
+        System.out.print("TransportClientTests UUID: " + uuid);
+
+        for (int i = 0; i < MAX_DEVICE_MULTIPLEX; i++)
+        {
+            String deviceId = "java-device-client-e2e-test-multiplexing".concat(i + "-" + uuid);
+
+            deviceListAmqps[i] = Device.createFromId(deviceId, null, null);
+            Tools.addDeviceWithRetry(registryManager, deviceListAmqps[i]);
+            clientConnectionStringArrayList[i] = registryManager.getDeviceConnectionString(deviceListAmqps[i]);
+        }
+
+        Thread.sleep(MAX_DEVICE_MULTIPLEX * REGISTRY_MANAGER_DEVICE_CREATION_DELAY_MILLISECONDS);
+
+    }
+
+    @After
+    public void tearDownTest() throws IOException, IotHubException
+    {
+        if (registryManager != null)
+        {
+            for (int i = 0; i < MAX_DEVICE_MULTIPLEX; i++)
+            {
+                registryManager.removeDevice(deviceListAmqps[i].getDeviceId());
+            }
+        }
+
         try
         {
             Thread.sleep(INTERTEST_GUARDIAN_DELAY_MILLISECONDS);
