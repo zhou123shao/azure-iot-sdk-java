@@ -33,11 +33,11 @@ import static com.microsoft.azure.sdk.iot.device.IotHubClientProtocol.*;
  */
 public class ReceiveMessagesTests extends ReceiveMessagesCommon
 {
-    public ReceiveMessagesTests(InternalClient client, IotHubClientProtocol protocol, BaseDevice identity, AuthenticationType authenticationType, ClientType clientType, String publicKeyCert, String privateKey, String x509Thumbprint)
+    public ReceiveMessagesTests(IotHubClientProtocol protocol, AuthenticationType authenticationType, ClientType clientType, String publicKeyCert, String privateKey, String x509Thumbprint) throws Exception
     {
-        super(client, protocol, identity, authenticationType, clientType, publicKeyCert, privateKey, x509Thumbprint);
+        super(protocol, authenticationType, clientType, publicKeyCert, privateKey, x509Thumbprint);
 
-        System.out.println(clientType + " ReceiveMessagesTests UUID: " + (identity instanceof Module ? ((Module) identity).getId() : identity.getDeviceId()));
+        System.out.println(clientType + " ReceiveMessagesTests UUID: " + (testInstance.identity instanceof Module ? ((Module) testInstance.identity).getId() : testInstance.identity.getDeviceId()));
     }
 
     @Test
@@ -86,6 +86,8 @@ public class ReceiveMessagesTests extends ReceiveMessagesCommon
     @Test
     public void receiveBackToBackUniqueC2DCommandsOverAmqpsUsingSendAsync() throws Exception
     {
+        List messageIdListStoredOnC2DSend = new ArrayList(); // store the message id list on sending C2D commands using service client
+        List messageIdListStoredOnReceive = new ArrayList(); // store the message id list on receiving C2D commands using device client
 
         if (this.testInstance.protocol != AMQPS)
         {
@@ -100,7 +102,7 @@ public class ReceiveMessagesTests extends ReceiveMessagesCommon
         IotHubServicesCommon.openClientWithRetry(testInstance.client);
 
         // set call back for device client for receiving message
-        com.microsoft.azure.sdk.iot.device.MessageCallback callBackOnRx = new MessageCallbackForBackToBackC2DMessages();
+        com.microsoft.azure.sdk.iot.device.MessageCallback callBackOnRx = new MessageCallbackForBackToBackC2DMessages(messageIdListStoredOnReceive);
 
         if (testInstance.client instanceof DeviceClient)
         {
@@ -149,7 +151,7 @@ public class ReceiveMessagesTests extends ReceiveMessagesCommon
         }
 
         // Now wait for messages to be received in the device client
-        waitForBackToBackC2DMessagesToBeReceived();
+        waitForBackToBackC2DMessagesToBeReceived(messageIdListStoredOnReceive);
         testInstance.client.closeNow(); //close the device client connection
         Assert.assertTrue(buildExceptionMessage(testInstance.protocol + ", " + testInstance.authenticationType + ": Received messages don't match up with sent messages", testInstance.client), messageIdListStoredOnReceive.containsAll(messageIdListStoredOnC2DSend)); // check if the received list is same as the actual list that was created on sending the messages
         messageIdListStoredOnReceive.clear();
