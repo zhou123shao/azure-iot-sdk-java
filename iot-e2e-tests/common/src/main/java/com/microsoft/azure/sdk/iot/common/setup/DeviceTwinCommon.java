@@ -12,7 +12,6 @@ import com.microsoft.azure.sdk.iot.device.DeviceTwin.Property;
 import com.microsoft.azure.sdk.iot.device.DeviceTwin.TwinPropertyCallBack;
 import com.microsoft.azure.sdk.iot.device.exceptions.ModuleClientException;
 import com.microsoft.azure.sdk.iot.device.transport.IotHubConnectionStatus;
-import com.microsoft.azure.sdk.iot.service.BaseDevice;
 import com.microsoft.azure.sdk.iot.service.RegistryManager;
 import com.microsoft.azure.sdk.iot.service.auth.AuthenticationType;
 import com.microsoft.azure.sdk.iot.service.devicetwin.DeviceTwin;
@@ -20,8 +19,8 @@ import com.microsoft.azure.sdk.iot.service.devicetwin.DeviceTwinDevice;
 import com.microsoft.azure.sdk.iot.service.devicetwin.Pair;
 import com.microsoft.azure.sdk.iot.service.devicetwin.RawTwinQuery;
 import com.microsoft.azure.sdk.iot.service.exceptions.IotHubException;
-import com.microsoft.azure.sdk.iot.service.exceptions.IotHubNotFoundException;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 
@@ -425,6 +424,15 @@ public class DeviceTwinCommon extends IntegrationTest
         }
     }
 
+    @AfterClass
+    public static void classTearDown()
+    {
+        if (registryManager != null)
+        {
+            registryManager.close();
+        }
+    }
+
     @Before
     public void setUpNewDeviceAndModule() throws IOException, IotHubException, URISyntaxException, InterruptedException, ModuleClientException
     {
@@ -464,7 +472,14 @@ public class DeviceTwinCommon extends IntegrationTest
     {
         tearDownTwin(deviceUnderTest);
 
-        registryManager.removeDevice(deviceUnderTest.sCDeviceForRegistryManager.getDeviceId());
+        try
+        {
+            registryManager.removeDevice(deviceUnderTest.sCDeviceForRegistryManager.getDeviceId());
+        }
+        catch (Exception e)
+        {
+
+        }
 
         try
         {
@@ -475,24 +490,6 @@ public class DeviceTwinCommon extends IntegrationTest
             e.printStackTrace();
             fail(buildExceptionMessage("Unexpected exception encountered", internalClient));
         }
-    }
-
-    protected static Collection<BaseDevice> getIdentities(Collection inputs)
-    {
-        //twin tests tear down and build up identities in between tests, not at the end of the suite
-        return new HashSet<>();
-    }
-
-    protected static void tearDown(Collection<BaseDevice> identitiesToDispose)
-    {
-        if (registryManager != null)
-        {
-            Tools.removeDevicesAndModules(registryManager, identitiesToDispose);
-            registryManager.close();
-        }
-
-        registryManager = null;
-        sCDeviceTwin = null;
     }
 
     protected void readReportedPropertiesAndVerify(DeviceState deviceState, String startsWithKey, String startsWithValue, int expectedReportedPropCount) throws IOException, IotHubException, InterruptedException

@@ -21,8 +21,6 @@ import java.util.Collection;
 @RunWith(Parameterized.class)
 public class GetTwinErrInjJVMRunner extends GetTwinErrInjTests
 {
-    static Collection<BaseDevice> identities;
-
     public GetTwinErrInjJVMRunner(String deviceId, String moduleId, IotHubClientProtocol protocol, AuthenticationType authenticationType, ClientType clientType, String publicKeyCert, String privateKey, String x509Thumbprint)
     {
         super(deviceId, moduleId, protocol, authenticationType, clientType, publicKeyCert, privateKey, x509Thumbprint);
@@ -33,14 +31,6 @@ public class GetTwinErrInjJVMRunner extends GetTwinErrInjTests
     public static Collection inputs() throws Exception
     {
         iotHubConnectionString = Tools.retrieveEnvironmentVariableValue(TestConstants.IOT_HUB_CONNECTION_STRING_ENV_VAR_NAME);
-        Collection inputs = inputsCommon(ClientType.DEVICE_CLIENT);
-        identities = getIdentities(inputs);
-        return inputs;
-    }
-
-    @AfterClass
-    public static void cleanUpResources()
-    {
-        tearDown(identities);
+        return inputsCommon(ClientType.DEVICE_CLIENT);
     }
 }
