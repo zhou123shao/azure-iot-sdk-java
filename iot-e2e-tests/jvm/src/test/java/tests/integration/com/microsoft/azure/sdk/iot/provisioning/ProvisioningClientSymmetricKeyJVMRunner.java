@@ -12,11 +12,13 @@ import com.microsoft.azure.sdk.iot.common.setup.ProvisioningCommon;
 import com.microsoft.azure.sdk.iot.common.tests.provisioning.ProvisioningTests;
 import com.microsoft.azure.sdk.iot.provisioning.device.ProvisioningDeviceClientTransportProtocol;
 import net.jcip.annotations.NotThreadSafe;
+import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.Collection;
 
+@Ignore
 @NotThreadSafe
 @RunWith(Parameterized.class)
 public class ProvisioningClientSymmetricKeyJVMRunner extends ProvisioningTests
