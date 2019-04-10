@@ -136,8 +136,15 @@
                     See:
                     http://maven.apache.org/surefire/maven-surefire-plugin/examples/fork-options-and-parallel-execution.html
                     -->
-                    <parallel>all</parallel>
-                    <useUnlimitedThreads>true</useUnlimitedThreads>
+                    
+					
+					<parallel>both</parallel>
+                    <!--<threadCount>20</threadCount>-->
+					<useUnlimitedThreads>true</useUnlimitedThreads>
+					
+					
+					
+					
                     <skipITs>${skipITs}</skipITs>
                     <argLine>
                         -javaagent:${settings.localRepository}/org/jmockit/jmockit/1.24/jmockit-1.24.jar
