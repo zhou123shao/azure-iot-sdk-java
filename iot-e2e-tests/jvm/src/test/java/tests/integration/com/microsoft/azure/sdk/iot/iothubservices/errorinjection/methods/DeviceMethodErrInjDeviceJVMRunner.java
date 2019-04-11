@@ -25,7 +25,7 @@ public class DeviceMethodErrInjDeviceJVMRunner extends DeviceMethodErrInjTests
     }
 
     //This function is run before even the @BeforeClass annotation, so it is used as the @BeforeClass method
-    @Parameterized.Parameters(name = "{1} with {2} auth using {3}")
+    @Parameterized.Parameters(name = "{0} with {1} auth using {2}")
     public static Collection inputs() throws Exception
     {
         iotHubConnectionString = Tools.retrieveEnvironmentVariableValue(TestConstants.IOT_HUB_CONNECTION_STRING_ENV_VAR_NAME);
