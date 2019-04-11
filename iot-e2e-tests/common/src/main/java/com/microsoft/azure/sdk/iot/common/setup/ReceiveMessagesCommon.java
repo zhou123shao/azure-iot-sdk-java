@@ -119,10 +119,10 @@ public class ReceiveMessagesCommon extends IntegrationTest
                     new Object[][]
                             {
                                     //sas token module client
-                                    {MQTT, SAS, ClientType.DEVICE_CLIENT, "", "", ""},
-                                    {AMQPS, SAS, ClientType.DEVICE_CLIENT, "", "", ""},
-                                    {MQTT_WS, SAS, ClientType.DEVICE_CLIENT, "", "", ""},
-                                    {AMQPS_WS, SAS, ClientType.DEVICE_CLIENT, "", "", ""},
+                                    {MQTT, SAS, ClientType.DEVICE_CLIENT, publicKeyCert, privateKey, x509Thumbprint},
+                                    {AMQPS, SAS, ClientType.DEVICE_CLIENT, publicKeyCert, privateKey, x509Thumbprint},
+                                    {MQTT_WS, SAS, ClientType.DEVICE_CLIENT, publicKeyCert, privateKey, x509Thumbprint},
+                                    {AMQPS_WS, SAS, ClientType.DEVICE_CLIENT, publicKeyCert, privateKey, x509Thumbprint},
 
                                     //x509 module client
                                     {HTTPS, SELF_SIGNED, ClientType.DEVICE_CLIENT, publicKeyCert, privateKey, x509Thumbprint},
