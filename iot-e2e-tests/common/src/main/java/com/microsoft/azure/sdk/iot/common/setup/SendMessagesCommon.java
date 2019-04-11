@@ -137,10 +137,10 @@ public class SendMessagesCommon extends IntegrationTest
                     new Object[][]
                             {
                                     //sas token module client
-                                    {MQTT, SAS, ClientType.MODULE_CLIENT, "", "", ""},
-                                    {AMQPS, SAS, ClientType.MODULE_CLIENT, "", "", ""},
-                                    {MQTT_WS, SAS, ClientType.MODULE_CLIENT, "", "", ""},
-                                    {AMQPS_WS, SAS, ClientType.MODULE_CLIENT, "", "", ""},
+                                    {MQTT, SAS, ClientType.MODULE_CLIENT, publicKeyCert, privateKey, x509Thumbprint},
+                                    {AMQPS, SAS, ClientType.MODULE_CLIENT, publicKeyCert, privateKey, x509Thumbprint},
+                                    {MQTT_WS, SAS, ClientType.MODULE_CLIENT, publicKeyCert, privateKey, x509Thumbprint},
+                                    {AMQPS_WS, SAS, ClientType.MODULE_CLIENT, publicKeyCert, privateKey, x509Thumbprint},
 
                                     //x509 module client
                                     {MQTT, SELF_SIGNED, ClientType.MODULE_CLIENT, publicKeyCert, privateKey, x509Thumbprint},

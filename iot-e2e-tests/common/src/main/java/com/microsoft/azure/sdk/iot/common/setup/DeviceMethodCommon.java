@@ -368,7 +368,7 @@ public class DeviceMethodCommon extends IntegrationTest
     }
 
     @AfterClass
-    protected static void tearDown()
+    public static void tearDownClass()
     {
         registryManager.close();
     }
