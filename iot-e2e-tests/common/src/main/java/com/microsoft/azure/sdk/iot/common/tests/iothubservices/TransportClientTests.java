@@ -65,12 +65,12 @@ public class TransportClientTests extends IntegrationTest
     private static final long MAXIMUM_TIME_FOR_IOTHUB_PROPAGATION_BETWEEN_DEVICE_SERVICE_CLIENTS = MAXIMUM_TIME_TO_WAIT_FOR_IOTHUB_TWIN_OPERATION * 10; // 2 sec
     private static final long REGISTRY_MANAGER_DEVICE_CREATION_DELAY_MILLISECONDS = 3 * 1000;
 
-    private static Device[] deviceListAmqps = new Device[MAX_DEVICE_MULTIPLEX];
-    private static final AtomicBoolean succeed = new AtomicBoolean();
+    private Device[] deviceListAmqps = new Device[MAX_DEVICE_MULTIPLEX];
+    private AtomicBoolean succeed;
 
     protected static String iotHubConnectionString = "";
 
-    private static Map<String, String> messageProperties = new HashMap<>(3);
+    private Map<String, String> messageProperties = new HashMap<>(3);
 
     private static ServiceClient serviceClient;
     private static FileUploadState[] fileUploadState;
@@ -109,12 +109,6 @@ public class TransportClientTests extends IntegrationTest
     {
         registryManager = RegistryManager.createFromConnectionString(iotHubConnectionString);
 
-
-        messageProperties = new HashMap<>(3);
-        messageProperties.put("name1", "value1");
-        messageProperties.put("name2", "value2");
-        messageProperties.put("name3", "value3");
-
         serviceClient = ServiceClient.createFromConnectionString(iotHubConnectionString, IotHubServiceClientProtocol.AMQPS);
         serviceClient.open();
 
@@ -151,7 +145,15 @@ public class TransportClientTests extends IntegrationTest
     {
         String uuid = UUID.randomUUID().toString();
 
+        succeed = new AtomicBoolean();
+
         System.out.print("TransportClientTests UUID: " + uuid);
+
+        messageProperties = new HashMap<>(3);
+        messageProperties.put("name1", "value1");
+        messageProperties.put("name2", "value2");
+        messageProperties.put("name3", "value3");
+
 
         for (int i = 0; i < MAX_DEVICE_MULTIPLEX; i++)
         {
@@ -162,7 +164,7 @@ public class TransportClientTests extends IntegrationTest
             clientConnectionStringArrayList[i] = registryManager.getDeviceConnectionString(deviceListAmqps[i]);
         }
 
-        Thread.sleep(MAX_DEVICE_MULTIPLEX * REGISTRY_MANAGER_DEVICE_CREATION_DELAY_MILLISECONDS);
+        Thread.sleep(REGISTRY_MANAGER_DEVICE_CREATION_DELAY_MILLISECONDS);
 
     }
 
@@ -246,7 +248,7 @@ public class TransportClientTests extends IntegrationTest
         for (int i = 0; i < clientArrayList.size(); i++)
         {
             Success messageReceived = new Success();
-            com.microsoft.azure.sdk.iot.device.MessageCallback callback = new MessageCallback();
+            com.microsoft.azure.sdk.iot.device.MessageCallback callback = new MessageCallback(messageProperties);
             ((DeviceClient)clientArrayList.get(i)).setMessageCallback(callback, messageReceived);
 
             sendMessageToDevice(deviceListAmqps[i].getDeviceId(), "AMQPS");
@@ -274,7 +276,7 @@ public class TransportClientTests extends IntegrationTest
         for (int i = 0; i < clientArrayList.size(); i++)
         {
             Success messageReceived = new Success();
-            com.microsoft.azure.sdk.iot.device.MessageCallback callback = new MessageCallback();
+            com.microsoft.azure.sdk.iot.device.MessageCallback callback = new MessageCallback(messageProperties);
             ((DeviceClient)clientArrayList.get(i)).setMessageCallback(callback, messageReceived);
 
             sendMessageToDevice(deviceListAmqps[i].getDeviceId(), "AMQPS_WS");
@@ -304,7 +306,7 @@ public class TransportClientTests extends IntegrationTest
         {
             new Thread(
                     new MultiplexRunnable(
-                            deviceListAmqps[i], clientArrayList.get(i), NUM_MESSAGES_PER_CONNECTION, NUM_KEYS_PER_MESSAGE, SEND_TIMEOUT_MILLISECONDS, cdl))
+                            deviceListAmqps[i], clientArrayList.get(i), NUM_MESSAGES_PER_CONNECTION, NUM_KEYS_PER_MESSAGE, SEND_TIMEOUT_MILLISECONDS, cdl, succeed))
                     .start();
         }
         cdl.await();
@@ -336,7 +338,7 @@ public class TransportClientTests extends IntegrationTest
         {
             new Thread(
                     new MultiplexRunnable(
-                            deviceListAmqps[i], clientArrayList.get(i), NUM_MESSAGES_PER_CONNECTION, NUM_KEYS_PER_MESSAGE, SEND_TIMEOUT_MILLISECONDS, cdl))
+                            deviceListAmqps[i], clientArrayList.get(i), NUM_MESSAGES_PER_CONNECTION, NUM_KEYS_PER_MESSAGE, SEND_TIMEOUT_MILLISECONDS, cdl, succeed))
                     .start();
         }
         cdl.await();
@@ -780,6 +782,13 @@ public class TransportClientTests extends IntegrationTest
 
     private static class MessageCallback implements com.microsoft.azure.sdk.iot.device.MessageCallback
     {
+        Map messageProperties;
+
+        public MessageCallback(Map messageProperties)
+        {
+            this.messageProperties = messageProperties;
+        }
+
         public IotHubMessageResult execute(Message msg, Object context)
         {
             Boolean resultValue = true;
@@ -1010,6 +1019,7 @@ public class TransportClientTests extends IntegrationTest
         private long sendTimeout;
         private long numKeys;
         private CountDownLatch latch;
+        private AtomicBoolean succeed;
 
         @Override
         public void run()
@@ -1035,15 +1045,16 @@ public class TransportClientTests extends IntegrationTest
                                  long numMessagesPerConnection,
                                  long numKeys,
                                  long sendTimeout,
-                                 CountDownLatch latch)
+                                 CountDownLatch latch,
+                                 AtomicBoolean succeed)
         {
             this.client = client;
             this.numMessagesPerDevice = numMessagesPerConnection;
             this.sendTimeout = sendTimeout;
             this.numKeys = numKeys;
             this.latch = latch;
-
-            succeed.set(true);
+            this.succeed = succeed;
+            this.succeed.set(true);
 
             messageString = "Java client " + deviceAmqps.getDeviceId() + " test e2e message over AMQP protocol";
         }
